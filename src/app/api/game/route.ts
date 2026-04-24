@@ -55,10 +55,8 @@ export async function POST(req: Request) {
   const body = await req.json();
   const { action, tokenId, playerColor } = body;
   
-  let state = await kv.get<GameState>(STATE_KEY);
-  if (!state) {
-    state = getInitialState();
-  }
+  const rawState = await kv.get<GameState>(STATE_KEY);
+  let state: GameState = rawState || getInitialState();
 
   if (action === 'VOTE_RESET') {
     if (playerColor && !state.resetVotes.includes(playerColor as PlayerColor)) {
