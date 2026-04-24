@@ -1,65 +1,172 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect } from "react";
+import LudoBoard from "@/components/LudoBoard";
+import Dice from "@/components/Dice";
+import { useGameState } from "@/hooks/useGameState";
 
 export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+  const [player, setPlayer] = useState<string | null>(null);
+  const [showPrompt, setShowPrompt] = useState(false);
+  const { gameState, rollDice, moveToken, voteReset, resetGame } = useGameState();
+  const [initialGameId, setInitialGameId] = useState<number | null>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [winMessage, setWinMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+  }, []);
+
+  useEffect(() => {
+    if (gameState) {
+      if (initialGameId === null) {
+        setInitialGameId(gameState.gameId);
+      } else if (gameState.gameId !== initialGameId) {
+        window.location.reload();
+      }
+    }
+  }, [gameState, initialGameId]);
+
+  useEffect(() => {
+    if (gameState?.winner && !winMessage) {
+      if (gameState.winner === "yellow") {
+        setWinMessage("kalikan ariyilenki nirthi po!");
+      } else if (gameState.winner === "blue") {
+        setWinMessage("ludo alla jeevitham!");
+      }
+
+      setTimeout(() => {
+        resetGame().then(() => {
+          window.location.reload();
+        });
+      }, 3000);
+    }
+  }, [gameState?.winner, winMessage, resetGame]);
+
+  const handleSelectPlayer = (name: string) => {
+    setPlayer(name);
+    if (name === "Niya") {
+      setShowPrompt(true);
+      setTimeout(() => {
+        setShowPrompt(false);
+      }, 3000);
+    }
+  };
+
+  if (!player) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center p-4 overflow-hidden relative">
+        {deferredPrompt && (
+          <div className="absolute top-12 left-1/2 -translate-x-1/2 z-50">
+            <button
+              onClick={async () => {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                  setDeferredPrompt(null);
+                }
+              }}
+              className="px-6 py-3 bg-blue-600/90 hover:bg-blue-500 rounded-full text-xs font-bold tracking-widest uppercase text-white shadow-[0_0_30px_rgba(59,130,246,0.6)] animate-bounce"
+            >
+              Install on your phone
+            </button>
+          </div>
+        )}
+        <div className="z-10 w-full max-w-md flex flex-col items-center gap-12 p-12 rounded-3xl bg-black/40 backdrop-blur-xl border border-zinc-800/50 shadow-[0_0_50px_rgba(0,0,0,0.5)] transform animate-in fade-in zoom-in duration-700">
+          <h1 className="text-4xl md:text-5xl font-bold text-center tracking-wider font-dancing silver-text">
+            Who is this?
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+          
+          <div className="flex flex-col w-full gap-4">
+            <button 
+              onClick={() => handleSelectPlayer("Niya")}
+              className="w-full py-4 rounded-full border border-zinc-700/50 hover:border-yellow-500/50 hover:bg-yellow-500/10 hover:shadow-[0_0_20px_rgba(234,179,8,0.15)] text-zinc-300 transition-all duration-300 tracking-widest uppercase text-sm font-medium"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              Niya
+            </button>
+            <button 
+              onClick={() => handleSelectPlayer("Sreeram")}
+              className="w-full py-4 rounded-full border border-zinc-700/50 hover:border-blue-500/50 hover:bg-blue-500/10 hover:shadow-[0_0_20px_rgba(59,130,246,0.15)] text-zinc-300 transition-all duration-300 tracking-widest uppercase text-sm font-medium"
             >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+              Sreeram
+            </button>
+          </div>
         </div>
       </main>
-    </div>
+    );
+  }
+
+  if (showPrompt || winMessage) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center p-4 overflow-hidden relative bg-black z-50">
+        <h1 className="text-4xl md:text-6xl font-bold text-center tracking-wider font-dancing silver-text animate-pulse duration-1000 max-w-2xl leading-relaxed">
+          {winMessage || "tholkan ready aano?"}
+        </h1>
+      </main>
+    );
+  }
+
+  // Map player name to game color
+  const playerColor = player === "Sreeram" ? "yellow" : player === "Niya" ? "blue" : null;
+  const isMyTurn = gameState?.turn === playerColor;
+  const hasVoted = playerColor && gameState?.resetVotes.includes(playerColor);
+
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-between p-4 md:p-12 lg:p-24 overflow-hidden relative animate-in fade-in duration-1000">
+      <div className="z-10 w-full max-w-5xl items-center justify-center font-mono text-sm flex flex-col gap-8 md:gap-12">
+        
+        {/* Top Text */}
+        <div className="flex flex-col items-center gap-2 mt-4 md:mt-8 h-20">
+          <div className="text-zinc-500 tracking-widest uppercase text-xs">
+            Playing as <span className="text-zinc-300 font-bold">{player}</span>
+          </div>
+          <h1 className="text-6xl md:text-8xl font-bold text-center tracking-wider font-dancing silver-text">
+            {isMyTurn ? "Your Turn!" : "Waiting..."}
+          </h1>
+        </div>
+
+        {/* Board Component */}
+        <div className="w-full flex items-center justify-center">
+          <LudoBoard gameState={gameState} onMoveToken={moveToken} playerColor={playerColor} />
+        </div>
+
+        {/* Dice Component */}
+        <div className="mb-2">
+          {!gameState?.winner && (
+            <Dice 
+              onRoll={rollDice} 
+              disabled={!isMyTurn || gameState?.diceValue !== null} 
+              value={gameState?.diceValue || null}
+              lastActionId={gameState?.lastActionId}
+              turnColor={gameState?.turn}
+            />
+          )}
+        </div>
+
+        {/* Reset Voting */}
+        <div className="mb-8 flex flex-col items-center gap-3">
+          {gameState && !gameState.winner && (
+            <button
+              onClick={() => playerColor && voteReset(playerColor)}
+              disabled={!!hasVoted}
+              className="px-6 py-2 rounded-full border border-red-900/50 hover:bg-red-900/20 text-red-500/80 hover:text-red-400 text-xs tracking-widest uppercase transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              {hasVoted ? "Voted to Reset" : "Vote to Reset Game"}
+            </button>
+          )}
+          {gameState && gameState.resetVotes.length > 0 && !gameState.winner && (
+            <div className="text-zinc-600 text-[10px] tracking-widest uppercase">
+              Reset Votes: <span className="text-zinc-400">{gameState.resetVotes.length} / 2</span>
+            </div>
+          )}
+        </div>
+
+      </div>
+    </main>
   );
 }
