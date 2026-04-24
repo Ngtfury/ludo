@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { kv } from '@vercel/kv';
 
 export type PlayerColor = 'yellow' | 'blue';
 
@@ -22,10 +23,7 @@ export type GameState = {
   resetVotes: PlayerColor[];
 };
 
-// Global in-memory state
-declare global {
-  var ludoGameState: GameState | undefined;
-}
+const STATE_KEY = 'ludo_game_state_v1';
 
 const getInitialState = (): GameState => ({
   gameId: Date.now(),
@@ -42,37 +40,44 @@ const getInitialState = (): GameState => ({
   resetVotes: []
 });
 
-if (!global.ludoGameState) {
-  global.ludoGameState = getInitialState();
-}
-
 const SAFE_SPOTS = [0, 8, 21, 26, 34, 47];
 
 export async function GET() {
-  return NextResponse.json(global.ludoGameState);
+  let state = await kv.get<GameState>(STATE_KEY);
+  if (!state) {
+    state = getInitialState();
+    await kv.set(STATE_KEY, state);
+  }
+  return NextResponse.json(state);
 }
 
 export async function POST(req: Request) {
   const body = await req.json();
   const { action, tokenId, playerColor } = body;
-  const state = global.ludoGameState!;
+  
+  let state = await kv.get<GameState>(STATE_KEY);
+  if (!state) {
+    state = getInitialState();
+  }
 
   if (action === 'VOTE_RESET') {
     if (playerColor && !state.resetVotes.includes(playerColor as PlayerColor)) {
       state.resetVotes.push(playerColor as PlayerColor);
       if (state.resetVotes.length === 2) {
-        global.ludoGameState = getInitialState();
-        global.ludoGameState.log = "Game was reset by both players!";
-        return NextResponse.json(global.ludoGameState);
+        state = getInitialState();
+        state.log = "Game was reset by both players!";
+        await kv.set(STATE_KEY, state);
+        return NextResponse.json(state);
       }
+      await kv.set(STATE_KEY, state);
     }
     return NextResponse.json(state);
   }
 
   if (state.winner) {
     if (action === 'RESET_GAME') {
-      global.ludoGameState = getInitialState();
-      return NextResponse.json(global.ludoGameState);
+      state = getInitialState();
+      await kv.set(STATE_KEY, state);
     }
     return NextResponse.json(state);
   }
@@ -116,6 +121,7 @@ export async function POST(req: Request) {
       state.sixCount += 1;
       if (state.sixCount === 3) {
         switchTurn("Rolled three 6s! Turn skipped.");
+        await kv.set(STATE_KEY, state);
         return NextResponse.json(state);
       }
     } else {
@@ -136,6 +142,7 @@ export async function POST(req: Request) {
       }
     }
 
+    await kv.set(STATE_KEY, state);
     return NextResponse.json(state);
   }
 
@@ -198,6 +205,7 @@ export async function POST(req: Request) {
       state.winner = color;
       state.log = `${color.toUpperCase()} WINS THE GAME!`;
       state.diceValue = null;
+      await kv.set(STATE_KEY, state);
       return NextResponse.json(state);
     }
 
@@ -211,12 +219,14 @@ export async function POST(req: Request) {
       switchTurn();
     }
 
+    await kv.set(STATE_KEY, state);
     return NextResponse.json(state);
   }
 
   if (action === 'RESET_GAME') {
-    global.ludoGameState = getInitialState();
-    return NextResponse.json(global.ludoGameState);
+    state = getInitialState();
+    await kv.set(STATE_KEY, state);
+    return NextResponse.json(state);
   }
 
   return NextResponse.json({ error: "Invalid action" }, { status: 400 });
