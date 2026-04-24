@@ -10,7 +10,6 @@ const nextConfig: NextConfig = {
 const withPwaConfig = withPWA({
   dest: "public",
   register: true,
-  skipWaiting: true,
 });
 
 export default withPwaConfig(nextConfig);
